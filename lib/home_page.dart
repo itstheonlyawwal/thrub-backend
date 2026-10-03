@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'trade_page.dart';
 import 'signals_page.dart';
+import 'position_store.dart';
+import 'market_data.dart';
+import 'deposit_page.dart';
 
 class HomePage extends StatefulWidget {
-
-
   final void Function(int)? onSwitchTab;
   const HomePage({super.key, this.onSwitchTab});
 
@@ -18,21 +19,9 @@ class _HomePageState extends State<HomePage> {
   static const Color _tealColor = Color(0xFF2DD9A8);
   static const Color _borderColor = Color(0xFF232938);
 
-  // Placeholder market data — replace with real API data later
-  final List<Map<String, dynamic>> _markets = [
-    {'symbol': 'BTC/USD', 'name': 'Bitcoin', 'letter': 'B', 'price': '\$83,566.00', 'change': '-0.97%', 'up': false},
-    {'symbol': 'ETH/USD', 'name': 'Ethereum', 'letter': 'E', 'price': '\$2,690.97', 'change': '+0.19%', 'up': true},
-    {'symbol': 'BNB/USD', 'name': 'BNB', 'letter': 'B', 'price': '\$763.47', 'change': '-1.81%', 'up': false},
-    {'symbol': 'SOL/USD', 'name': 'Solana', 'letter': 'S', 'price': '\$118.75', 'change': '-2.53%', 'up': false},
-    {'symbol': 'XRP/USD', 'name': 'XRP', 'letter': 'X', 'price': '\$1.49', 'change': '-1.24%', 'up': false},
-    {'symbol': 'DOGE/USD', 'name': 'Dogecoin', 'letter': 'D', 'price': '\$0.09', 'change': '-2.70%', 'up': false},
-  ];
-
   Widget _buildQuickAction(IconData icon, String label, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-        // TODO: navigate based on label ("Markets", "Portfolio", "Signals", "More")
-
       child: Column(
         children: [
           Container(
@@ -45,19 +34,23 @@ class _HomePageState extends State<HomePage> {
             child: Icon(icon, color: _tealColor, size: 22),
           ),
           SizedBox(height: 8),
-          Text(label, style: TextStyle(color: Colors.white, fontSize: 13)),
+          Text(label,
+              style: TextStyle(color: Colors.white, fontSize: 13)),
         ],
       ),
     );
   }
 
-  Widget _buildMarketRow(Map<String, dynamic> market) {
-    final bool isUp = market['up'] as bool;
+  Widget _buildMarketRow(Coin coin) {
+    final Color changeColor = coin.isUp ? _tealColor : Colors.redAccent;
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => TradePage(initialSymbol: market['symbol'] as String),
-        ),
-        );     // TODO: navigate to trade page for market['symbol']
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TradePage(initialSymbol: coin.pair),
+          ),
+        );
       },
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 14),
@@ -69,8 +62,9 @@ class _HomePageState extends State<HomePage> {
             CircleAvatar(
               backgroundColor: _cardColor,
               child: Text(
-                market['letter'],
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                coin.ticker[0],
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
             SizedBox(width: 12),
@@ -79,11 +73,11 @@ class _HomePageState extends State<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    market['symbol'],
+                    coin.pair,
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                   Text(
-                    market['name'],
+                    coin.name,
                     style: TextStyle(color: Colors.grey[500], fontSize: 13),
                   ),
                 ],
@@ -93,13 +87,12 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  market['price'],
+                  coin.priceText,
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                 ),
                 Text(
-                  market['change'],
-                  style: TextStyle(color: isUp ? _tealColor : Colors.redAccent, fontSize: 13,
-                  ),
+                  coin.changeText,
+                  style: TextStyle(color: changeColor, fontSize: 13),
                 ),
               ],
             ),
@@ -124,7 +117,10 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   Text(
                     'Home',
-                    style: TextStyle(color: _tealColor, fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: _tealColor,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold),
                   ),
                   Row(
                     children: [
@@ -132,14 +128,16 @@ class _HomePageState extends State<HomePage> {
                         onTap: () {
                           // TODO: navigate to notifications page
                         },
-                        child: Icon(Icons.notifications_none, color: Colors.white),
+                        child: Icon(Icons.notifications_none,
+                            color: Colors.white),
                       ),
                       SizedBox(width: 20),
                       GestureDetector(
                         onTap: () {
                           // TODO: navigate to settings page
                         },
-                        child: Icon(Icons.settings_outlined, color: Colors.white),
+                        child: Icon(Icons.settings_outlined,
+                            color: Colors.white),
                       ),
                     ],
                   ),
@@ -167,55 +165,85 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           Text(
                             'YOUR BALANCE',
-                            style: TextStyle(color: Colors.grey[500], fontSize: 12, letterSpacing: 1),
+                            style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 12,
+                                letterSpacing: 1),
                           ),
                           SizedBox(height: 10),
                           Text(
                             '\$0.00',
-                            style: TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 34,
+                                fontWeight: FontWeight.bold),
                           ),
                           SizedBox(height: 8),
-                          Text(
-                            'Wallet: \$0.00 · 0 open positions',
-                            style: TextStyle(color: Colors.grey[500], fontSize: 13),
+
+                          // Live open-positions counter
+                          ListenableBuilder(
+                            listenable: PortfolioStore.instance,
+                            builder: (context, _) {
+                              final count =
+                                  PortfolioStore.instance.openPositions.length;
+                              return Text(
+                                'Wallet: \$0.00 · $count open ${count == 1 ? 'position' : 'positions'}',
+                                style: TextStyle(
+                                    color: Colors.grey[500], fontSize: 13),
+                              );
+                            },
                           ),
                           SizedBox(height: 20),
                           Row(
                             children: [
                               Expanded(
                                 child: ElevatedButton(
-                                  onPressed: () { Navigator.pushReplacement(          // TODO: navigate to trade page
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) => TradePage()),
-                                  );
+                                  onPressed: () {
+                                    if (widget.onSwitchTab != null) {
+                                      widget.onSwitchTab!(2); // Trade tab
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => TradePage()),
+                                      );
+                                    }
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: _tealColor,
                                     foregroundColor: Colors.black,
-                                    padding: EdgeInsets.symmetric(vertical: 14),
+                                    padding: EdgeInsets.symmetric(
+                                        vertical: 14),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                   ),
-                                  child: Text('Trade', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  child: Text('Trade',
+                                      style: TextStyle(fontWeight: FontWeight.bold)),
                                 ),
                               ),
                               SizedBox(width: 12),
                               Expanded(
                                 child: OutlinedButton(
                                   onPressed: () {
-                                    // TODO: navigate to deposit page
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => DepositPage()),
+                                    );
                                   },
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.white,
                                     side: BorderSide(color: _borderColor),
-                                    padding: EdgeInsets.symmetric(vertical: 14),
+                                    padding: EdgeInsets.symmetric(
+                                        vertical: 14),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                   ),
-                                  child: Text('Deposit', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  child: Text('Deposit',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
                                 ),
                               ),
                             ],
@@ -231,19 +259,20 @@ class _HomePageState extends State<HomePage> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _buildQuickAction(Icons.show_chart, 'Markets', () {
-                          widget.onSwitchTab?.call(1); // Markets is tab index 1 in MainShell
+                          widget.onSwitchTab?.call(1);
                         }),
                         _buildQuickAction(Icons.work_outline, 'Portfolio', () {
-                          widget.onSwitchTab?.call(3); // Portfolio is tab index 3
+                          widget.onSwitchTab?.call(3);
                         }),
                         _buildQuickAction(Icons.graphic_eq, 'Signals', () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => SignalsPage()),
+                            MaterialPageRoute(
+                                builder: (context) => SignalsPage()),
                           );
                         }),
                         _buildQuickAction(Icons.more_horiz, 'More', () {
-                          widget.onSwitchTab?.call(4); // More is tab index 4
+                          widget.onSwitchTab?.call(4);
                         }),
                       ],
                     ),
@@ -251,13 +280,21 @@ class _HomePageState extends State<HomePage> {
                     SizedBox(height: 28),
                     Text(
                       'MARKETS',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 12, letterSpacing: 1),
+                      style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 12,
+                          letterSpacing: 1),
                     ),
                     SizedBox(height: 8),
 
-                    // Market list
-                    Column(
-                      children: _markets.map(_buildMarketRow).toList(),
+                    // Live market list (prices + direction from MarketData)
+                    ListenableBuilder(
+                      listenable: MarketData.instance,
+                      builder: (context, _) => Column(
+                        children: MarketData.instance.coins
+                            .map(_buildMarketRow)
+                            .toList(),
+                      ),
                     ),
                     SizedBox(height: 20),
                   ],

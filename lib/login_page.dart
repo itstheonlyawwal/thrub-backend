@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'signup_page.dart';
 import 'main_shell.dart';
-
-
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'user_session.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -37,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _error = 'Please enter your email and password.');
       return;
     }
-final emailPattern = r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$';
+    final emailPattern = r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$';
     if (!RegExp(emailPattern).hasMatch(email)) {
       setState(() => _error = 'Please enter a valid email address.');
       return;
@@ -47,25 +48,34 @@ final emailPattern = r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$';
       return;
     }
 
-
     setState(() {
       _error = null;
       _isLoading = true;
     });
 
     try {
-      // TODO: replace with your real login call
-      await Future.delayed(Duration(seconds: 1));
-      if (email.isEmpty || password.isEmpty) {
-        setState(() => _error = 'Invalid email or password.');
-        return; //stops here to confirm the password is correct
-      }
-
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => MainShell()),
+      final response = await http.post(
+        Uri.parse('https://throbtrading.com/login'),
+        // see note below about this URL
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
       );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        UserSession.instance.username = data['username'];
+        UserSession.instance.token =
+            data['token']; // add this field to UserSession
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainShell()),
+        );
+      } else {
+        final data = jsonDecode(response.body);
+        setState(() => _error = data['detail'] ?? 'Invalid email or password.');
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'Something went wrong. Please try again.');

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'main_shell.dart';
+import 'user_session.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -56,19 +59,32 @@ class _SignupPageState extends State<SignupPage> {
     });
 
     try {
-      // TODO: replace with your real sign-up call
-      await Future.delayed(Duration(seconds: 1));
-      if (username.isEmpty || email.isEmpty || password.isEmpty) {
-        setState(() => _error = 'Please fill in all required fields.');
-        return;
-      }
-
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => MainShell()),
+      final response = await http.post(
+        Uri.parse('https://throbtrading.com/signup'), // same URL rule as login
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'username': username,
+          'password': password,
+        }),
       );
-    } catch (e) {
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        UserSession.instance.username = data['username'];
+        UserSession.instance.token = data['token'];
+
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainShell()),
+        );
+      } else {
+        final data = jsonDecode(response.body);
+        setState(() => _error = data['detail'] ?? 'Something went wrong. Please try again.');
+      }
+    }catch (e) {
       if (!mounted) return;
       setState(() => _error = 'Something went wrong. Please try again.');
     } finally {

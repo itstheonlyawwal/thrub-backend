@@ -14,7 +14,7 @@ class SignalsPage extends StatelessWidget {
   Widget _buildStat(String label, String value) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -22,10 +22,10 @@ class SignalsPage extends StatelessWidget {
               label,
               style: TextStyle(color: Colors.grey[500], fontSize: 11, letterSpacing: 1),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               value,
-              style: const TextStyle(color: _tealColor, fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(color: _tealColor, fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -36,7 +36,7 @@ class SignalsPage extends StatelessWidget {
   Widget _buildTableHeader() {
     TextStyle style = TextStyle(color: Colors.grey[500], fontSize: 12, letterSpacing: 1);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           Expanded(flex: 2, child: Text('PAIR', style: style)),
@@ -56,34 +56,34 @@ class SignalsPage extends StatelessWidget {
       backgroundColor: _bgColor,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Logo row
               Row(
                 children: [
-                  const Icon(Icons.graphic_eq, color: _tealColor, size: 20),
-                  const SizedBox(width: 6),
-                  const Text(
+                  Icon(Icons.graphic_eq, color: _tealColor, size: 20),
+                  SizedBox(width: 6),
+                  Text(
                     'throb.',
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
-              const SizedBox(height: 28),
+              SizedBox(height: 28),
 
-              const Text(
+              Text(
                 'Every closed call, no exceptions',
                 style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Text(
                 'Wins and losses both, in the order they happened. This is the entire '
                     'history — nothing curated out.',
                 style: TextStyle(color: Colors.grey[500], fontSize: 14, height: 1.4),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
 
               // Stats card
               Container(
@@ -101,15 +101,15 @@ class SignalsPage extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: 24),
 
               // Table
               _buildTableHeader(),
-              const Divider(color: _borderColor, height: 1),
+              Divider(color: _borderColor, height: 1),
 
               if (_closedSignals.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  padding: EdgeInsets.symmetric(vertical: 40),
                   child: Center(
                     child: Text(
                       'No closed signals yet — check back soon.',
@@ -123,27 +123,19 @@ class SignalsPage extends StatelessWidget {
                     return Column(
                       children: [
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: EdgeInsets.symmetric(vertical: 14),
                           child: Row(
                             children: [
-                              Expanded(flex: 2, child: Text(signal['pair'] ?? '', style: const TextStyle(color: Colors.white))),
-                              Expanded(flex: 2, child: Text(signal['direction'] ?? '', style: const TextStyle(color: Colors.white))),
-                              Expanded(flex: 2, child: Text(signal['entry'] ?? '', style: const TextStyle(color: Colors.white))),
-                              Expanded(flex: 2, child: Text(signal['closed'] ?? '', style: const TextStyle(color: Colors.white))),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  signal['result'] ?? '',
-                                  style: TextStyle(
-                                    color: (signal['result'] ?? '').startsWith('+') ? _tealColor : Colors.redAccent,
-                                  ),
-                                ),
-                              ),
+                              Expanded(flex: 2, child: Text(signal['pair'] ?? '', style: TextStyle(color: Colors.white))),
+                              Expanded(flex: 2, child: Text(signal['direction'] ?? '', style: TextStyle(color: Colors.white))),
+                              Expanded(flex: 2, child: Text(signal['entry'] ?? '', style: TextStyle(color: Colors.white))),
+                              Expanded(flex: 2, child: Text(signal['closed'] ?? '', style: TextStyle(color: Colors.white))),
+                              Expanded(flex: 2, child: Text(signal['result'] ?? '', style: TextStyle(color: (signal['result'] ?? '').startsWith('+') ? _tealColor : Colors.redAccent,),),),
                               Expanded(flex: 2, child: Text(signal['date'] ?? '', style: TextStyle(color: Colors.grey[500]))),
                             ],
                           ),
                         ),
-                        const Divider(color: _borderColor, height: 1),
+                        Divider(color: _borderColor, height: 1),
                       ],
                     );
                   }).toList(),

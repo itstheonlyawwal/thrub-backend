@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'trade_page.dart';
+import 'market_data.dart';
 
 class MarketPage extends StatelessWidget {
   const MarketPage({super.key});
@@ -9,23 +10,15 @@ class MarketPage extends StatelessWidget {
   static const Color _tealColor = Color(0xFF2DD9A8);
   static const Color _borderColor = Color(0xFF232938);
 
-  static const List<Map<String, dynamic>> _markets = [
-    {'symbol': 'BTC/USD', 'name': 'Bitcoin', 'letter': 'B', 'price': '\$83,566.00', 'change': '-0.97%', 'up': false},
-    {'symbol': 'ETH/USD', 'name': 'Ethereum', 'letter': 'E', 'price': '\$2,690.97', 'change': '+0.19%', 'up': true},
-    {'symbol': 'BNB/USD', 'name': 'BNB', 'letter': 'B', 'price': '\$763.47', 'change': '-1.81%', 'up': false},
-    {'symbol': 'SOL/USD', 'name': 'Solana', 'letter': 'S', 'price': '\$118.75', 'change': '-2.53%', 'up': false},
-    {'symbol': 'XRP/USD', 'name': 'XRP', 'letter': 'X', 'price': '\$1.49', 'change': '-1.24%', 'up': false},
-    {'symbol': 'DOGE/USD', 'name': 'Dogecoin', 'letter': 'D', 'price': '\$0.09', 'change': '-2.70%', 'up': false},
-  ];
+  Widget _buildMarketRow(BuildContext context, Coin coin) {
+    final Color changeColor = coin.isUp ? _tealColor : Colors.redAccent;
 
-  Widget _buildMarketRow(BuildContext context, Map<String, dynamic> market) {
-    final bool isUp = market['up'] as bool;
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => TradePage(initialSymbol: market['symbol'] as String),
+            builder: (context) => TradePage(initialSymbol: coin.pair),
           ),
         );
       },
@@ -39,8 +32,9 @@ class MarketPage extends StatelessWidget {
             CircleAvatar(
               backgroundColor: _cardColor,
               child: Text(
-                market['letter'],
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                coin.ticker[0],
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
             SizedBox(width: 12),
@@ -49,11 +43,14 @@ class MarketPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    market['symbol'],
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    coin.pair,
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15),
                   ),
                   Text(
-                    market['name'],
+                    coin.name,
                     style: TextStyle(color: Colors.grey[500], fontSize: 13),
                   ),
                 ],
@@ -63,15 +60,15 @@ class MarketPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  market['price'],
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                  coin.priceText,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15),
                 ),
                 Text(
-                  market['change'],
-                  style: TextStyle(
-                    color: isUp ? _tealColor : Colors.redAccent,
-                    fontSize: 13,
-                  ),
+                  coin.changeText,
+                  style: TextStyle(color: changeColor, fontSize: 13),
                 ),
               ],
             ),
@@ -83,35 +80,37 @@ class MarketPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bgColor,
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 12),
-              Text(
-                'Markets',
-                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Live prices. Trades placed here are simulated.',
-                style: TextStyle(color: Colors.grey[500], fontSize: 13),
-              ),
-              SizedBox(height: 12),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _markets.length,
-                  itemBuilder: (context, index) => _buildMarketRow(context, _markets[index]),
+    return ListenableBuilder(
+      listenable: MarketData.instance,
+      builder: (context, _) {
+        final coins = MarketData.instance.coins;
+
+        return Scaffold(
+          backgroundColor: _bgColor,
+          body: SafeArea(
+            child: ListView(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                SizedBox(height: 16),
+                Text(
+                  'Markets',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold),
                 ),
-              ),
-            ],
+                SizedBox(height: 6),
+                Text(
+                  'Live prices. Trades placed here are simulated.',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                ),
+                SizedBox(height: 16),
+                ...coins.map((c) => _buildMarketRow(context, c)),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

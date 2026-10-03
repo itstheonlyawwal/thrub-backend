@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'position_store.dart';
+import 'market_data.dart';
 import 'trade_page.dart';
 
 class PortfolioPage extends StatefulWidget {
@@ -15,10 +17,6 @@ class _PortfolioPageState extends State<PortfolioPage> {
   static const Color _borderColor = Color(0xFF232938);
 
   int _selectedTab = 0; // 0 = Open, 1 = History
-
-  // Replace with real data once you have a backend/state management
-  final List<Map<String, dynamic>> _openPositions = [];
-  final List<Map<String, dynamic>> _historyPositions = [];
 
   Widget _buildTab(String label, int index, int count) {
     final bool selected = _selectedTab == index;
@@ -45,6 +43,134 @@ class _PortfolioPageState extends State<PortfolioPage> {
     );
   }
 
+  Widget _sideBadge(String side) {
+    final isBuy = side == 'BUY';
+    final color = isBuy ? _tealColor : Colors.redAccent;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(side,
+          style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildOpenRow(Position position) {
+    final double pnl = position.livePnl; // live, updates with market ticks
+    final bool isProfit = pnl >= 0;
+    final Color pnlColor = isProfit ? _tealColor : Colors.redAccent;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        border: Border.all(color: _borderColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(position.symbol,
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15)),
+                    SizedBox(width: 8),
+                    _sideBadge(position.side),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Entry \$${position.entryPrice.toStringAsFixed(2)} · \$${position.amountUsd.toStringAsFixed(0)}',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${isProfit ? '+' : ''}\$${pnl.toStringAsFixed(2)}',
+                style: TextStyle(
+                    color: pnlColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15),
+              ),
+              SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => PortfolioStore.instance.closePosition(position),
+                child: Container(
+                  padding:
+                  EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('Close',
+                      style: TextStyle(color: Colors.white, fontSize: 13)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryRow(Position position) {
+    final double pnl = position.realizedPnl;
+    final bool isProfit = pnl >= 0;
+
+    return Container(
+      margin: EdgeInsets.only(top: 12),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        border: Border.all(color: _borderColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${position.symbol} · ${position.side}',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15)),
+                SizedBox(height: 4),
+                Text(
+                  'Entry \$${position.entryPrice.toStringAsFixed(2)} → Close \$${position.exitPrice!.toStringAsFixed(2)}',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${isProfit ? '+' : ''}\$${pnl.toStringAsFixed(2)}',
+            style: TextStyle(
+              color: isProfit ? _tealColor : Colors.redAccent,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     final bool isOpenTab = _selectedTab == 0;
     return Center(
@@ -61,19 +187,19 @@ class _PortfolioPageState extends State<PortfolioPage> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => TradePage()),
+                  MaterialPageRoute(builder: (context) => const TradePage()),
                 );
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 decoration: BoxDecoration(
                   color: _tealColor,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  'Open a Position',
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                ),
+                child: const Text('Open a Position',
+                    style: TextStyle(
+                        color: Colors.black, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -84,52 +210,67 @@ class _PortfolioPageState extends State<PortfolioPage> {
 
   @override
   Widget build(BuildContext context) {
-    final currentList = _selectedTab == 0 ? _openPositions : _historyPositions;
+    return ListenableBuilder(
+      // listens to BOTH: store changes (open/close) and live price ticks (P/L)
+      listenable:
+      Listenable.merge([PortfolioStore.instance, MarketData.instance]),
+      builder: (context, _) {
+        final openPositions = PortfolioStore.instance.openPositions;
+        final closedPositions = PortfolioStore.instance.closedPositions;
+        final currentList = _selectedTab == 0 ? openPositions : closedPositions;
 
-    return Scaffold(
-      backgroundColor: _bgColor,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  border: Border.all(color: _borderColor),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text('\$0.00', style: TextStyle(color: Colors.white)),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Portfolio',
-                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16),
-              Row(
+        return Scaffold(
+          backgroundColor: _bgColor,
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTab('Open', 0, _openPositions.length),
-                  _buildTab('History', 1, _historyPositions.length),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: _borderColor),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text('\$0.00',
+                        style: TextStyle(color: Colors.white)),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Portfolio',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _buildTab('Open', 0, openPositions.length),
+                      _buildTab('History', 1, closedPositions.length),
+                    ],
+                  ),
+                  Expanded(
+                    child: currentList.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      itemCount: currentList.length,
+                      itemBuilder: (context, index) {
+                        final position = currentList[index];
+                        return _selectedTab == 0
+                            ? _buildOpenRow(position)
+                            : _buildHistoryRow(position);
+                      },
+                    ),
+                  ),
                 ],
               ),
-              Expanded(
-                child: currentList.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                  itemCount: currentList.length,
-                  itemBuilder: (context, index) {
-                    // TODO: build a real row once positions exist
-                    return SizedBox.shrink();
-                  },
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

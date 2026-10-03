@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'position_store.dart';
+import 'market_data.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class TradePage extends StatefulWidget {
   final String initialSymbol;
+
   const TradePage({super.key, this.initialSymbol = 'BTC/USD'});
 
   @override
@@ -14,29 +18,16 @@ class _TradePageState extends State<TradePage> {
   static const Color _tealColor = Color(0xFF2DD9A8);
   static const Color _borderColor = Color(0xFF232938);
 
-  // Placeholder prices per coin — replace with a real live-price feed later
-  static const Map<String, Map<String, dynamic>> _coinData = {
-    'BTC': {'price': 83366.00, 'change': -1.77},
-    'ETH': {'price': 2690.97, 'change': 0.19},
-    'BNB': {'price': 763.47, 'change': -1.81},
-    'SOL': {'price': 118.75, 'change': -2.53},
-    'XRP': {'price': 1.49, 'change': -1.24},
-    'DOGE': {'price': 0.09, 'change': -2.70},
-  };
-
   late String _selectedCoin;
   final _amountController = TextEditingController(text: '100');
 
   @override
   void initState() {
     super.initState();
-    // Extract "BTC" out of "BTC/USD"
-    // print('Received initialSymbol: ${widget.initialSymbol}');
-    // _selectedCoin = widget.initialSymbol.split('/').first;
-    // if (!_coinData.containsKey(_selectedCoin)) _selectedCoin = 'BTC';
-  // }
     _selectedCoin = widget.initialSymbol.split('/').first;
-    if (!_coinData.containsKey(_selectedCoin)) _selectedCoin = 'BTC';
+    if (!MarketData.instance.tickers.contains(_selectedCoin)) {
+      _selectedCoin = 'BTC';
+    }
   }
 
   @override
@@ -46,200 +37,248 @@ class _TradePageState extends State<TradePage> {
   }
 
   void _placeOrder(String side) {
-    final amount = _amountController.text;
+    final amountText = _amountController.text;
+    final amount = double.tryParse(amountText);
+
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid position size.')),
+      );
+      return;
+    }
+
+    final price = MarketData.instance.priceOf(_selectedCoin);
+
+    PortfolioStore.instance.openPosition(
+      Position(
+        symbol: '$_selectedCoin/USD',
+        side: side,
+        entryPrice: price,
+        amountUsd: amount,
+        openedAt: DateTime.now(),
+      ),
+    );
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$side order placed: \$$amount of $_selectedCoin (simulated)'),
+        content: Text(
+          '$side order placed: \$$amountText of $_selectedCoin (simulated)',
+        ),
         backgroundColor: side == 'BUY' ? _tealColor : Colors.redAccent,
+      ),
+    );
+  }
+
+  Widget _orderButton(String side, Color color, String priceText) {
+    return GestureDetector(
+      onTap: () => _placeOrder(side),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Column(
+          children: [
+            Text(side,
+                style: TextStyle(
+                    color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 2),
+            Text(priceText, style: TextStyle(color: color, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChart() {
+    final history = MarketData.instance.historyOf(_selectedCoin);
+
+    if (history.length < 2) {
+      return Center(
+        child: Text(
+          'Gathering live price data...',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+      );
+    }
+
+    final spots = <FlSpot>[
+      for (int i = 0; i < history.length; i++) FlSpot(i.toDouble(), history[i]),
+    ];
+
+    return LineChart(
+      LineChartData(
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
+        borderData: FlBorderData(show: false),
+        lineTouchData: const LineTouchData(enabled: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: _tealColor,
+            barWidth: 2,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              color: _tealColor.withValues(alpha: 0.1),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final coin = _coinData[_selectedCoin]!;
-    final double price = coin['price'];
-    final double change = coin['change'];
-    final bool isUp = change >= 0;
+    return ListenableBuilder(
+      listenable: MarketData.instance,
+      builder: (context, _) {
+        final coin = MarketData.instance.coin(_selectedCoin);
+        final Color changeColor = coin.isUp ? _tealColor : Colors.redAccent;
 
-    return Scaffold(
-      backgroundColor: _bgColor,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  border: Border.all(color: _borderColor),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text('\$0.00', style: TextStyle(color: Colors.white)),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                '$_selectedCoin/USD',
-                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+        return Scaffold(
+          backgroundColor: _bgColor,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '\$${price.toStringAsFixed(2)}',
-                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(width: 10),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Text(
-                      '${isUp ? '+' : ''}${change.toStringAsFixed(2)}% (24h)',
-                      style: TextStyle(
-                        color: isUp ? _tealColor : Colors.redAccent,
-                        fontSize: 14,
-                      ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: _borderColor),
+                      borderRadius: BorderRadius.circular(6),
                     ),
+                    child: const Text('\$0.00',
+                        style: TextStyle(color: Colors.white)),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                  const SizedBox(height: 20),
+                  Text(coin.pair,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
 
-              // Chart placeholder
-              Container(
-                width: double.infinity,
-                height: 180,
-                decoration: BoxDecoration(
-                  color: _cardColor,
-                  border: Border.all(color: _borderColor),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    'Gathering live price data...',
-                    style: TextStyle(color: Colors.grey[600]),
+                  // Live price + change
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(coin.priceText,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold)),
+                      SizedBox(width: 10),
+                      Padding(
+                        padding: EdgeInsets.only(bottom: 6),
+                        child: Text('${coin.changeText} (24h)',
+                            style:
+                            TextStyle(color: changeColor, fontSize: 14)),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
+                  SizedBox(height: 16),
 
-              // Coin tabs
-              Row(
-                children: _coinData.keys.map((symbol) {
-                  final bool selected = symbol == _selectedCoin;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedCoin = symbol),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: selected ? _cardColor : Colors.transparent,
-                          border: Border.all(color: _borderColor),
-                        ),
-                        child: Text(
-                          symbol,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: selected ? _tealColor : Colors.grey[500],
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                  // Chart placeholder
+                  Container(
+                    width: double.infinity,
+                    height: 180,
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _cardColor,
+                      border: Border.all(color: _borderColor),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: _buildChart(),
+                  ),
+                  SizedBox(height: 16),
+
+                  // Coin tabs
+                  Row(
+                    children: MarketData.instance.tickers.map((symbol) {
+                      final bool selected = symbol == _selectedCoin;
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selectedCoin = symbol),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color:
+                              selected ? _cardColor : Colors.transparent,
+                              border: Border.all(color: _borderColor),
+                            ),
+                            child: Text(symbol,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: selected
+                                        ? _tealColor
+                                        : Colors.grey[500],
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13)),
                           ),
                         ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
+                      );
+                    }).toList(),
+                  ),
+                  SizedBox(height: 20),
 
-              Text(
-                'POSITION SIZE (USD)',
-                style: TextStyle(color: Colors.grey[500], fontSize: 12, letterSpacing: 1),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _amountController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                decoration: InputDecoration(
-                  prefixText: '\$ ',
-                  prefixStyle: const TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: _cardColor,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: const BorderSide(color: _borderColor),
+                  Text('POSITION SIZE (USD)',
+                      style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 12,
+                          letterSpacing: 1)),
+                  SizedBox(height: 8),
+                  TextField(
+                    controller: _amountController,
+                    keyboardType:
+                    TextInputType.numberWithOptions(decimal: true),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
+                    decoration: InputDecoration(
+                      prefixText: '\$ ',
+                      prefixStyle: TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: _cardColor,
+                      contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: _borderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: _borderColor),
+                      ),
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: const BorderSide(color: _borderColor),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+                  SizedBox(height: 20),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => _placeOrder('SELL'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'SELL',
-                              style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '\$${price.toStringAsFixed(2)}',
-                              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                          child: _orderButton(
+                              'SELL', Colors.redAccent, coin.priceText)),
+                      SizedBox(width: 12),
+                      Expanded(
+                          child:
+                          _orderButton('BUY', _tealColor, coin.priceText)),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => _placeOrder('BUY'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          color: _tealColor.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'BUY',
-                              style: TextStyle(color: _tealColor, fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '\$${price.toStringAsFixed(2)}',
-                              style: const TextStyle(color: _tealColor, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                  SizedBox(height: 24),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

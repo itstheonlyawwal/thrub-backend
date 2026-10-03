@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:thrub_trading/signals_page.dart';
+import 'refer_page.dart';
+
 import 'login_page.dart';
+import 'withdraw_page.dart';
 
 class MorePage extends StatelessWidget {
-  const MorePage({super.key});
+  final double balance;
+
+  const MorePage({super.key, this.balance = 0.0});
+
 
   static const Color _bgColor = Color(0xFF0B0F19);
   static const Color _cardColor = Color(0xFF141924);
@@ -14,12 +21,18 @@ class MorePage extends StatelessWidget {
       padding: EdgeInsets.only(bottom: 12),
       child: Text(
         text,
-        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
 
-  Widget _buildTile(BuildContext context, IconData icon, String label, VoidCallback onTap) {
+  Widget _buildTile(
+    BuildContext context,
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -41,9 +54,8 @@ class MorePage extends StatelessWidget {
   }
 
   void _showComingSoon(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   @override
@@ -67,9 +79,35 @@ class MorePage extends StatelessWidget {
                   mainAxisSpacing: 12,
                   childAspectRatio: 1.2,
                   children: [
-                    _buildTile(context, Icons.graphic_eq, 'Signals', () => _showComingSoon(context, 'Signals')),
-                    _buildTile(context, Icons.account_balance_wallet_outlined, 'Withdraw', () => _showComingSoon(context, 'Withdraw')),
-                    _buildTile(context, Icons.refresh, 'Refer a Friend', () => _showComingSoon(context, 'Refer a Friend')),
+                    _buildTile(
+                      context,
+                      Icons.graphic_eq,
+                      'Signals',
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => SignalsPage()),
+                      ),
+                    ),
+                    _buildTile(
+                      context,
+                      Icons.account_balance_wallet_outlined,
+                      'Withdraw',
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => WithdrawPage(balance: balance),
+                        ),
+                      ),
+                    ),
+                    _buildTile(
+                      context,
+                      Icons.refresh,
+                      'Refer a Friend',
+                      () => Navigator.push(
+                        context,
+                          MaterialPageRoute(builder: (context) => ReferPage()),
+                    ),
+                    ),
                   ],
                 ),
                 SizedBox(height: 24),
@@ -82,15 +120,19 @@ class MorePage extends StatelessWidget {
                   mainAxisSpacing: 12,
                   childAspectRatio: 1.2,
                   children: [
-                    _buildTile(context, Icons.person_outline, 'Profile', () => _showComingSoon(context, 'Profile')),
-                    _buildTile(context, Icons.logout, 'Log Out', () {
-                      // TODO: clear session/auth state, then send back to login
-                      Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => LoginPage()),
-                              (route) => false);
-                    }
+                    _buildTile(
+                      context,
+                      Icons.person_outline,
+                      'Profile',
+                      () => _showComingSoon(context, 'Profile'),
                     ),
+                    _buildTile(context, Icons.logout, 'Log Out', () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => LoginPage()),
+                        (route) => false,
+                      ); // TODO: clear session/auth state, then send back to login
+                    }),
                   ],
                 ),
               ],
