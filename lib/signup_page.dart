@@ -60,7 +60,7 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://throbtrading.com/signup'), // same URL rule as login
+        Uri.parse('https://throb-backend.onrender.com/signup'), // same URL rule as login
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email,
@@ -86,7 +86,7 @@ class _SignupPageState extends State<SignupPage> {
       }
     }catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = 'DEBUG ERROR: $e');                                              //Something went wrong. Please try again.
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -55,8 +55,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://throbtrading.com/login'),
-        // see note below about this URL
+        Uri.parse('https://throb-backend.onrender.com/login'), // see note below about this URL
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       );
@@ -78,7 +77,7 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = 'DEBUG ERROR: $e');                                                     //Something went wrong. Please try again.
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -276,7 +275,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
-                        'Thrub Trading Technologies Limited 2026',
+                        'Throb Trading Technologies Limited 2026',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey, fontSize: 12),
                       ),
