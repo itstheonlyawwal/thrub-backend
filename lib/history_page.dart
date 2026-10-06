@@ -26,7 +26,7 @@ class HistoryPage extends StatelessWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: items.length,
-            separatorBuilder: (_, __) =>
+            separatorBuilder: (_, _) =>
             const Divider(color: Color(0xFF232938)),
             itemBuilder: (context, i) {
               final p = items[i];
